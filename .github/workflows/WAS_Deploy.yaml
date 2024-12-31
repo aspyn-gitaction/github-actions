@@ -1,0 +1,36 @@
+name: Deploy to EC2
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up JDK
+      uses: actions/setup-java@v3
+      with:
+        java-version: '11'
+        distribution: 'temurin'
+
+    - name: Build with Gradle
+      run: ./gradlew build -x test
+
+    - name: Deploy to EC2
+      uses: appleboy/ssh-action@master
+      with:
+        host: 50.18.67.26
+        username: ec2-user
+        key: AWS_TB_CA
+        script: |
+          cd /home/ec2-user
+          git pull origin main
+          ./gradlew build -x test
+          # sudo systemctl stop your-app.service
+          sudo cp build/libs/*.jar /home/ec2-user
+          # sudo systemctl start your-app.service
