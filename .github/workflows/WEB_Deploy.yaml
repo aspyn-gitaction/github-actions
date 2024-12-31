@@ -1,0 +1,41 @@
+name: Deploy Web to EC2
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'web/**'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Zip web folder
+      run: zip -r web.zip web
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        role-to-assume: arn:aws:iam::592624331629:role/TB-ROLE-ADMIN
+        aws-region: us-west-1
+
+    - name: Upload to S3
+      run: aws s3 cp web.zip s3://pcloud-testbed-provisional-data/deployment/WEB/binary/
+
+    - name: Deploy to EC2
+      uses: appleboy/ssh-action@master
+      with:
+        host: 52.52.70.212
+        username: ec2-user
+        key: AWS_TB_CA
+        script: |
+          aws s3 cp s3://pcloud-testbed-provisional-data/deployment/WEB/binary/web.zip /tmp/web.zip
+          unzip -o /tmp/web.zip -d /tmp/web_temp
+          sudo rm -rf /usr/share/nginx/html/*
+          sudo mv /tmp/web_temp/web/* /usr/share/nginx/html
+          rm -rf /tmp/web.zip /tmp/web_temp
+          sudo systemctl restart nginx
